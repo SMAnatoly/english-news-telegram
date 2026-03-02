@@ -1,0 +1,484 @@
+{
+  "name": "EnglishWithNews",
+  "nodes": [
+    {
+      "parameters": {
+        "topic": "bbc-news-api",
+        "groupId": "b9n-kafka",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.kafkaTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1984,
+        -368
+      ],
+      "id": "024c62bf-f989-4ce1-8e1e-cbce84069051",
+      "name": "Kafka Trigger",
+      "credentials": {
+        "kafka": {
+          "id": "0cuGI0qS6vnTHIYY",
+          "name": "Kafka account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        -1360,
+        -192
+      ],
+      "id": "5a5fff0b-6ec6-4aba-8083-0f23efc0f138",
+      "name": "DeepSeek Chat Model",
+      "credentials": {
+        "deepSeekApi": {
+          "id": "VuRS8JgEEjyGNGVA",
+          "name": "DeepSeek account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        -176
+      ],
+      "id": "1003fce9-e317-4e8e-9c7e-edaefebae933",
+      "name": "DeepSeek Chat Model1",
+      "credentials": {
+        "deepSeekApi": {
+          "id": "VuRS8JgEEjyGNGVA",
+          "name": "DeepSeek account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        -176
+      ],
+      "id": "d0a393ec-12c9-42a5-b875-4f740ac2581b",
+      "name": "DeepSeek Chat Model2",
+      "credentials": {
+        "deepSeekApi": {
+          "id": "VuRS8JgEEjyGNGVA",
+          "name": "DeepSeek account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем входящие данные\nconst items = $input.all();\n\n// Обрабатываем каждый элемент\nconst result = items.map(item => {\n  // Берем содержимое поля message (это строка!)\n  const messageString = item.json.message;\n  \n  try {\n    // Парсим строку в настоящий JSON\n    const parsedMessage = JSON.parse(messageString);\n    \n    // Возвращаем объединенный результат\n    // Берем все поля из исходного сообщения + распарсенные поля из message\n    return {\n      ...item.json,        // тут будет topic и исходное message\n      ...parsedMessage,    // а тут title, summary, news_link\n      parsed: true         // метка, что мы обработали\n    };\n  } catch (error) {\n    // Если парсинг не удался, возвращаем как есть и добавляем ошибку\n    return {\n      ...item.json,\n      error: `Failed to parse message: ${error.message}`\n    };\n  }\n});\n\n// Возвращаем результат\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1776,
+        -368
+      ],
+      "id": "1c6bc01f-5d33-4835-91d9-fb5aac250ed0",
+      "name": "Code in JavaScript - Parse TXT to JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconst title = item.title || 'Без заголовка';\nconst summary = item.summary || 'Нет описания';\nconst newsLink = item.news_link;\n\n// HTML-версия ссылки\nconst linkText = newsLink \n  ? `\\n\\n🔗 <a href=\"${newsLink}\">Читать полностью</a>` \n  : '\\n\\n❌ Ссылка отсутствует';\n\n// Собираем пост в HTML-формате\n// **жирный** меняем на <b>жирный</b>\nconst post = `<b>${title}</b>\\n\\n${summary}${linkText}\\n\\n@english_lessons_with_news`;\n\nreturn [{\n  json: {\n    formattedPost: post,\n    hasLink: !!newsLink,\n    // Добавляем метку, что формат HTML (для отладки)\n    format: 'html',\n    ...item\n  },\n  binary: $input.first().binary\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1568,
+        -368
+      ],
+      "id": "2b2fd240-2a9a-482e-8388-9503bf8f32f8",
+      "name": "Code in JavaScript - Prepare Telegram post"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Роль: Ты — редактор новостного Telegram-канала.\n\nЗадача: Оформи подпись к фотографии для новостного поста, не добавляй ничего нового, только красивое форматирование.\n\nИсходные данные:\n- Оформленная новость:{{ $json.formattedPost }}\n\nТребования:\n- 4 хештега в конце (с заглавной буквы)\n- Ничего не добавляй в текст новости\n\nФормат:\nОформленная новость\n#Хештег1 #Хештег2 #Хештег3 #Хештег4",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Just prepare text for publication in telegram channel"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1360,
+        -368
+      ],
+      "id": "0c709945-2e15-4291-888f-dd73426a5bfd",
+      "name": "Basic LLM Chain - Add Hashtags"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Code in JavaScript - Parse TXT to JSON').item.json.image_link }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1008,
+        -368
+      ],
+      "id": "50de9a44-26b4-4c74-9273-20890dbbaef0",
+      "name": "HTTP Request - Download news picture"
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "@english_lessons_with_news",
+        "binaryData": true,
+        "additionalFields": {
+          "caption": "={{ $json.text }}",
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -800,
+        -368
+      ],
+      "id": "05e7b67d-b977-426e-8a3e-52dd6fd9c8d5",
+      "name": "Send a photo message - Post news with picture",
+      "webhookId": "cdab05d7-50b0-48ee-9ad9-56196bc3d525",
+      "credentials": {
+        "telegramApi": {
+          "id": "rEEJZVVRuo4eFtwL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Роль: Ты — креативный и увлечённый преподаватель английского языка. Твои студенты обожают тебя за то, что ты делаешь сложное — простым, а скучное — интересным.\n\nЗадача: Создай подробный разбор лексики и грамматики на основе этой новости. Это будет отдельный пост, который идёт сразу после новости с фото.\n\nИсходные данные:\n- Заголовок новости: {{ $('Code in JavaScript - Parse TXT to JSON').item.json.title }}\n- Краткое содержание: {{ $('Code in JavaScript - Parse TXT to JSON').item.json.summary }}\n\n⚠️ ТЕХНИЧЕСКОЕ ОГРАНИЧЕНИЕ: Весь пост должен быть не длиннее 3800 символов.\n\nТВОЙ СТИЛЬ:\n- Объяснения живые, с примерами, с любовью к языку\n- Выбирай 6-7 самых интересных слов и 2 грамматические конструкции (можно больше)\n- Для каждого слова: яркое объяснение + 1-2 живых примера\n- Добавляй произношение для сложных слов в квадратных скобках\n- Используй аналогии и жизненные ситуации в примерах\n- Группируй слова по темам, если это уместно\n- Добавляй эмодзи для оживления, но не перебарщивай (📚 ✨ 💡)\n\nСТРУКТУРА:\n\n1. ЗАГОЛОВОК (привлекающий внимание):\n   Например: <b>📚 Разбираем лексику из новости о NASA</b> или <b>✨ Слова, которые сделают твой английский космическим</b>\n\n2. ВВЕДЕНИЕ (1-2 предложения):\n   Например: \"Привет, друзья! 👋 Давайте заглянем «под капот» этой короткой новости и найдём настоящие языковые сокровища.\"\n\n3. ОСНОВНАЯ ЧАСТЬ — ЛЕКСИКА:\n   Для каждого слова:\n   - <b>Слово</b> [произношение] — объяснение (на русском)\n   - <i>Пример 1</i> (курсивом)\n   - <i>Пример 2</i> (если есть)\n   \n   Можно группировать с помощью жирных заголовков:\n   <b>🚀 Ключевые глаголы</b>\n   <b>🌕 Полезные существительные</b>\n   <b>💫 Интересные фразы</b>\n\n4. ГРАММАТИЧЕСКИЙ РАЗДЕЛ:\n   <b>✨ Грамматика: название конструкции</b>\n   Простое объяснение (на русском)\n   <i>Пример из новости или жизни</i>\n\n5. ЗАКЛЮЧЕНИЕ (по желанию):\n   Короткое напутствие, вопрос к студентам\n\nТРЕБОВАНИЯ К ФОРМАТИРОВАНИЮ (Telegram HTML):\n- Для <b>жирного текста</b> используй тег <b>\n- Для <i>курсива</i> используй тег <i>\n- Разделяй смысловые блоки пустыми строками\n- Объяснения — на русском, примеры — на английском\n- НЕ ИСПОЛЬЗУЙ символы ### для заголовков — они не работают в Telegram\n- НЕ ИСПОЛЬЗУЙ двойные звёздочки ** — они не работают в HTML-режиме\n- Все теги должны быть правильно закрыты (<b>текст</b>, а не <b>текст)\n\nВАЖНО: Весь пост должен быть в HTML-формате, готовом для отправки в Telegram с parse_mode=HTML.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -608,
+        -368
+      ],
+      "id": "96ab10fe-e821-4b6e-bea3-4a5106dc2ab5",
+      "name": "Basic LLM Chain - Generate explanations of news grammar"
+    },
+    {
+      "parameters": {
+        "chatId": "@english_lessons_with_news",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -304,
+        -368
+      ],
+      "id": "a60aafbf-9453-4a6e-857a-7b2360cc6eff",
+      "name": "Send a text message - Post grammar explanations",
+      "webhookId": "f00ff540-185b-49bb-8af4-5a3ea914e6d2",
+      "credentials": {
+        "telegramApi": {
+          "id": "rEEJZVVRuo4eFtwL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Роль: Ты — преподаватель английского языка, создаёшь закрепляющие викторины для своих студентов.\n\nКонтекст (пост с лексикой, который только что прочитали студенты): {{ $('Basic LLM Chain - Generate explanations of news grammar').item.json.text }}\n\nЗадание: Создай викторину (опрос с одним правильным ответом) на основе этого материала.\n\nТРЕБОВАНИЯ К ВИКТОРИНЕ:\n- Вопрос проверяет понимание одного из ключевых слов или грамматических конструкций из поста\n- Вопрос на английском языке\n- 4 варианта ответа\n- Правильный ответ — первый в списке (индекс 0)\n- Короткое объяснение на русском, почему ответ правильный (до 200 символов)\n- Объяснение должно быть понятным и полезным\n\nФОРМАТ ОТВЕТА (строго JSON, без лишнего текста):\n{\n  \"quiz\": {\n    \"question\": \"How do you say 'изменение планов' correctly?\",\n    \"options\": [\n      \"a change to plans\",\n      \"a change of plans\",\n      \"a change for plans\",\n      \"a change in plans\"\n    ],\n    \"explanation\": \"Правильно: 'a change to plans'. Предлог TO указывает на изменение ЧЕГО-ТО конкретного.\"\n  }\n}\n\nПРИМЕРЫ УДАЧНЫХ ВОПРОСОВ:\n- По лексике: \"Which word means 'to make an official announcement'?\"\n- По грамматике: \"Which sentence correctly uses the infinitive of purpose?\"\n- По произношению: \"How do you pronounce 'crew'?\"\n- По предлогам: \"Which preposition is correct with 'a change'?\"\n\nВАЖНО:\n- Правильный ответ всегда под индексом 0\n- Неправильные варианты должны быть правдоподобными (типичные ошибки студентов)\n- Объяснение должно помогать запомнить правило\n- Не добавляй ничего кроме JSON в ответе\n\nПРОВЕРЬ СЕБЯ ПЕРЕД ОТВЕТОМ:\n✅ В options ровно 4 элемента\n✅ Первый элемент (индекс 0) — правильный ответ\n✅ Остальные три — неправильные, но правдоподобные\n✅ explanation на русском, до 200 символов\n✅ Нет лишнего текста, только JSON",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -64,
+        -368
+      ],
+      "id": "bbc47377-981e-4288-be10-c54cbb8ad30a",
+      "name": "Basic LLM Chain - Generate Quiz"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst rawText = item.text || item.response || JSON.stringify(item);\n\nconsole.log('📥 Сырой ответ от LLM (первые 200 символов):', rawText.substring(0, 200));\n\ntry {\n  let quizData;\n  \n  // Вариант 1: Если это уже объект\n  if (typeof rawText === 'object') {\n    quizData = rawText;\n  }\n  // Вариант 2: Пробуем распарсить как есть\n  else {\n    try {\n      quizData = JSON.parse(rawText);\n    } catch (e) {\n      // Вариант 3: Убираем Markdown-блоки\n      const cleanedText = rawText\n        .replace(/```json\\s*/g, '')\n        .replace(/```\\s*$/g, '')\n        .replace(/`/g, '')\n        .trim();\n      \n      console.log('🧹 Очищенный текст:', cleanedText.substring(0, 200));\n      quizData = JSON.parse(cleanedText);\n    }\n  }\n  \n  // Извлекаем викторину (может быть в корне или в поле quiz)\n  const quiz = quizData.quiz || quizData;\n  \n  // Базовая проверка структуры\n  if (!quiz.question || !Array.isArray(quiz.options) || !quiz.explanation) {\n    throw new Error('Неполная структура викторины');\n  }\n  \n  console.log('✅ Парсинг успешен:', {\n    question: quiz.question.substring(0, 50) + '...',\n    options: quiz.options.length,\n    explanation: quiz.explanation.length\n  });\n  \n  // Возвращаем чистый JSON с викториной\n  return [{\n    json: {\n      quiz: quiz,  // сохраняем как есть\n      parsed: true,\n      timestamp: new Date().toISOString()\n    }\n  }];\n  \n} catch (error) {\n  console.error('❌ Ошибка парсинга:', error.message);\n  \n  // Возвращаем ошибку, но не ломаем пайплайн\n  return [{\n    json: {\n      error: error.message,\n      raw: rawText.substring(0, 500),\n      parsed: false\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        -368
+      ],
+      "id": "f954bd95-2c7d-44c4-99bc-0ce6309f42a3",
+      "name": "Code in JavaScript - Clean LLM answer"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\n// Проверяем, был ли успешный парсинг\nif (!input.quiz && !input.parsed) {\n  console.error('❌ Нет данных викторины, используем запасной вариант');\n  return [/* запасной вариант */];\n}\n\nconst quiz = input.quiz;\n\n// Сохраняем правильный ответ (предполагаем, что он под индексом 0)\nconst correctAnswerText = quiz.options[0];\n\n// Перемешиваем массив options (алгоритм Фишера-Йетса)\nconst shuffledOptions = [...quiz.options];\nfor (let i = shuffledOptions.length - 1; i > 0; i--) {\n  const j = Math.floor(Math.random() * (i + 1));\n  [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];\n}\n\n// Находим новый индекс правильного ответа\nconst correctIndex = shuffledOptions.indexOf(correctAnswerText);\n\n// Подготовка данных с проверкой лимитов Telegram\nlet question = quiz.question;\nlet options = shuffledOptions.map(opt => {\n  if (opt.length > 100) {\n    console.warn(`⚠️ Вариант слишком длинный (${opt.length}), обрезаем`);\n    return opt.substring(0, 97) + '...';\n  }\n  return opt;\n});\nlet explanation = quiz.explanation || 'Правильный ответ указан выше.';\n\n// Проверка длины вопроса (макс 300)\nif (question.length > 300) {\n  question = question.substring(0, 297) + '...';\n}\n\n// Проверка длины объяснения (макс 200)\nif (explanation.length > 200) {\n  explanation = explanation.substring(0, 197) + '...';\n}\n\n// Проверка количества вариантов\nif (options.length < 2) {\n  while (options.length < 2) options.push('Option ' + (options.length + 1));\n} else if (options.length > 10) {\n  options = options.slice(0, 10);\n  // Корректируем correctIndex, если правильный ответ оказался за пределами\n  if (correctIndex >= options.length) {\n    // В крайнем случае ставим 0, но такого не должно быть\n    correctIndex = 0;\n  }\n}\n\nconsole.log('🎲 Викторина перемешана. Правильный ответ теперь на позиции:', correctIndex);\n\nreturn [{\n  json: {\n    chat_id: \"@english_lessons_with_news\",  // замени на свой\n    question: question,\n    options: options,\n    type: \"quiz\",\n    correct_option_id: correctIndex,\n    explanation: explanation,\n    is_anonymous: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        -368
+      ],
+      "id": "9cca5f6b-f134-4af1-8af6-12c94c418d51",
+      "name": "Code in JavaScript - Prepare Quiz for publishing"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot8781890011:AAF3TezgJdSQ5_oRmPyWloDXhj1zPfdfdrI/sendPoll",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "question",
+              "value": "={{ $json.question }}"
+            },
+            {
+              "name": "options",
+              "value": "={{ $json.options }}"
+            },
+            {
+              "name": "type",
+              "value": "={{ $json.type }}"
+            },
+            {
+              "name": "correct_option_id",
+              "value": "={{ $json.correct_option_id }}"
+            },
+            {
+              "name": "explanation",
+              "value": "={{ $json.explanation }}"
+            },
+            {
+              "name": "is_anonymous",
+              "value": "={{ $json.is_anonymous }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        -368
+      ],
+      "id": "10c47c17-9597-4e2a-8d71-0f4e3ac0cbe7",
+      "name": "HTTP Request - Publish Quiz"
+    }
+  ],
+  "pinData": {
+    "Kafka Trigger": [
+      {
+        "json": {
+          "message": "{\"title\":\"Nasa announces change to its Moon landing plans\",\"summary\":\"It is adding an extra mission to its Artemis programme before landing astronauts on the Moon.\",\"image_link\":\"https://ichef.bbci.co.uk/news/240/cpsprodpb/0623/live/74ff37e0-13fe-11f1-8e3a-e7cecfbdc12f.jpg.webp\",\"news_link\":\"https://bbc.com/news/articles/c6270030neyo\"}",
+          "topic": "bbc-news-api",
+          "title": "Nasa announces change to its Moon landing plans",
+          "summary": "It is adding an extra mission to its Artemis programme before landing astronauts on the Moon.",
+          "image_link": "https://ichef.bbci.co.uk/news/240/cpsprodpb/0623/live/74ff37e0-13fe-11f1-8e3a-e7cecfbdc12f.jpg.webp",
+          "news_link": "https://bbc.com/news/articles/c6270030neyo",
+          "parsed": true
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Kafka Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript - Parse TXT to JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain - Add Hashtags",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain - Generate explanations of news grammar",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain - Generate Quiz",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript - Parse TXT to JSON": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript - Prepare Telegram post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript - Prepare Telegram post": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain - Add Hashtags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain - Add Hashtags": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Download news picture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Download news picture": {
+      "main": [
+        [
+          {
+            "node": "Send a photo message - Post news with picture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a photo message - Post news with picture": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain - Generate explanations of news grammar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain - Generate explanations of news grammar": {
+      "main": [
+        [
+          {
+            "node": "Send a text message - Post grammar explanations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message - Post grammar explanations": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain - Generate Quiz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain - Generate Quiz": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript - Clean LLM answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript - Clean LLM answer": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript - Prepare Quiz for publishing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript - Prepare Quiz for publishing": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Publish Quiz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "11071034-02b0-496b-84c5-c288fb5e947b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9de83aab5a154e7fdcf525fafeaa7302a3e8a7dce5c38d967cce1c707317f43d"
+  },
+  "id": "ONc199Lt6ntdiZMj",
+  "tags": []
+}
