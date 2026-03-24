@@ -251,7 +251,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.telegram.org/bot8781890011:AAF3TezgJdSQ5_oRmPyWloDXhj1zPfdfdrI/sendPoll",
+        "url": "=https://api.telegram.org/bot/sendPoll",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
